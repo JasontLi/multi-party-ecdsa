@@ -41,6 +41,9 @@ In the following steps we will generate 2-of-3 threshold signing key and sign a 
 ### Setup
 
 1. You need [Rust](https://rustup.rs/) and [GMP library](https://gmplib.org) (optionally) to be installed on your computer.
+     ```bash
+     sudo yum install -y gmp gmp-devel
+     ```
 2. - Run `cargo build --release --examples`
    - Don't have GMP installed? Use this command instead: 
      ```bash

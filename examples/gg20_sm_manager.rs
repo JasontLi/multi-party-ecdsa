@@ -13,6 +13,8 @@ use rocket::serde::json::Json;
 use rocket::State;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Notify, RwLock};
+mod http_keygen;
+mod http_signing;
 
 #[rocket::get("/rooms/<room_id>/subscribe")]
 async fn subscribe(
@@ -183,9 +185,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let figment = rocket::Config::figment().merge((
         "limits",
         rocket::data::Limits::new().limit("string", 100.megabytes()),
-    )).merge(("address", "0.0.0.0"));
+    )).merge(("address", "0.0.0.0")).merge(("port", 33081));
     rocket::custom(figment)
         .mount("/", rocket::routes![subscribe, issue_idx, broadcast])
+        .mount("/", http_keygen::mount_keygen_routes())
+        .mount("/", http_signing::mount_signing_routes())
         .manage(Db::empty())
         .launch()
         .await?;

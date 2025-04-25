@@ -40,6 +40,7 @@ round-based = { version = "0.1.4", features = [] }
 thiserror = "1.0.23"
 derivative = "2"
 sha2 = "0.9"
+sha3 = "0.10"
 rug = "1.27"
 
 [dependencies.paillier]
@@ -67,7 +68,7 @@ surf = "2"
 async-sse = "5"
 anyhow = "1"
 structopt = "0.3"
-secp256k1 = { version = "0.20", features = ["global-context"]}
+secp256k1 = { version = "0.20", features = ["global-context"] }
 
 thiserror = "1.0.23"
 round-based = { version = "0.1.4", features = ["dev"] }
@@ -83,6 +84,14 @@ name = "gg18_keygen_client"
 
 [[example]]
 name = "common"
+crate-type = ["lib"]
+
+[[example]]
+name = "http_keygen"
+crate-type = ["lib"]
+
+[[example]]
+name = "http_signing"
 crate-type = ["lib"]
 
 [[bench]]

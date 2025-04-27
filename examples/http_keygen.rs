@@ -1,8 +1,6 @@
 use rocket::serde::{json::Json, Deserialize, Serialize};
-use rocket::{post, routes, Route, State};
-use std::process::{Command, Output, Stdio};
-use tokio;
-use uuid::Uuid;
+use rocket::{post, routes, Route};
+use std::process::{Command, Stdio};
 use std::fs::File;
 use std::io::Read;
 use serde_json::Value;
@@ -13,8 +11,8 @@ use hex;
 #[derive(Deserialize)]
 struct KeygenRequest {
     keygen_share_path: String, // e.g. "/usr/wallet/0x123456"
-    room: String,              // e.g. "uuid"
-    address: String,              // e.g. "uuid"
+    room: String,              // e.g. "xxxxxxxx"
+    address: String,           // e.g. "192.168.15.200"
 }
 
 #[derive(Serialize)]
@@ -91,16 +89,19 @@ async fn spawn_cli_process(
         .arg(share_file)
         .arg("--room")
         .arg(room)
-        .arg("--index")
-        .arg(index)
         .arg("--threshold")
         .arg(threshold)
-        .arg("--number_of_parties")
+        .arg("--number-of-parties")
         .arg(number_of_parties)
+        .arg("--index")
+        .arg(index)
         .stdout(Stdio::piped());
 
+    println!("cmd: {:?}", cmd);
+
+
     // 启动进程
-    let mut child = cmd
+    let child = cmd
         .spawn()
         .map_err(|e| format!("failed to spawn CLI: {}", e))?;
 

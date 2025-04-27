@@ -1,8 +1,6 @@
 use rocket::serde::{json::Json, Deserialize, Serialize};
-use rocket::{post, routes, Route, State};
-use std::process::{Command, Output, Stdio};
-use tokio;
-use uuid::Uuid;
+use rocket::{post, routes, Route};
+use std::process::{Command, Stdio};
 
 #[derive(Deserialize)]
 struct SigningRequest {
@@ -10,7 +8,7 @@ struct SigningRequest {
     data_to_sign: String,      // hex or utf8
     parties: Vec<u16>,         // e.g. [1,2]
     address: String,           // e.g. "ip"
-    room: String,              // e.g. "uuid"
+    room: String,              // e.g. "xxxxxxxx"
 }
 
 #[derive(Serialize)]
@@ -30,7 +28,7 @@ async fn spawn_cli_process(
         Command::new("/application/multi-party-ecdsa/target/release/examples/gg20_signing");
     cmd.arg("--local_share")
         .arg(share_file)
-        .arg("--data_to_sign")
+        .arg("--data-to-sign")
         .arg(data_to_sign)
         .arg("--parties")
         .arg(parties)
@@ -41,7 +39,7 @@ async fn spawn_cli_process(
         .stdout(Stdio::piped());
 
     // 启动进程
-    let mut child = cmd
+    let child = cmd
         .spawn()
         .map_err(|e| format!("failed to spawn CLI: {}", e))?;
 

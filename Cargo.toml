@@ -38,7 +38,6 @@ centipede = { version = "0.3", default-features = false }
 zk-paillier = { version = "0.4.3", default-features = false }
 round-based = { version = "0.1.4", features = [] }
 thiserror = "1.0.23"
-derivative = "2"
 sha2 = "0.9"
 sha3 = "0.10"
 rug = "1.27"
@@ -54,37 +53,17 @@ default-features = false
 optional = true
 
 [dev-dependencies]
-criterion = "0.3"
-aes-gcm = "0.9.4"
 hex = "0.4"
 tokio = { version = "1", default-features = false, features = ["macros"] }
 futures = "0.3"
 rocket = { version = "0.5.0-rc.1", default-features = false, features = ["json"] }
-reqwest = { version = "0.9", default-features = false }
-uuid = { version = "0.8", features = ["v4"] }
 serde_json = "1.0"
-rand = "0.8"
 surf = "2"
 async-sse = "5"
 anyhow = "1"
 structopt = "0.3"
 secp256k1 = { version = "0.20", features = ["global-context"] }
-
-thiserror = "1.0.23"
 round-based = { version = "0.1.4", features = ["dev"] }
-
-[[example]]
-name = "gg18_sm_manager"
-
-[[example]]
-name = "gg18_sign_client"
-
-[[example]]
-name = "gg18_keygen_client"
-
-[[example]]
-name = "common"
-crate-type = ["lib"]
 
 [[example]]
 name = "http_keygen"

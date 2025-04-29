@@ -24,21 +24,26 @@ async fn spawn_cli_process(
     room: &str,
 ) -> Result<String, String> {
     // 构造命令
-    let mut cmd =
-        Command::new("./gg20_signing");
-    cmd.arg("--local_share")
-        .arg(share_file)
-        .arg("--data-to-sign")
-        .arg(data_to_sign)
-        .arg("--parties")
-        .arg(parties)
-        .arg("--address")
-        .arg(address_send)
-        .arg("--room")
-        .arg(room)
-        .stdout(Stdio::piped());
+    let command = vec![
+        "./gg20_signing",
+        "--local_share",
+        share_file,
+        "--data-to-sign",
+        data_to_sign,
+        "--parties",
+        parties,
+        "--address",
+        address_send,
+        "--room",
+        room,
+    ];
+
+    println!("cmd: {}", command.join(" "));
 
     // 启动进程
+    let mut cmd = Command::new(command[0]);
+    cmd.args(&command[1..]).stdout(Stdio::piped());
+
     let child = cmd
         .spawn()
         .map_err(|e| format!("failed to spawn CLI: {}", e))?;

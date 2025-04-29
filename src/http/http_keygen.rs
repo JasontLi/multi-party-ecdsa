@@ -1,12 +1,12 @@
+use hex;
 use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::{post, routes, Route};
-use std::process::{Command, Stdio};
+use secp256k1::{PublicKey, Secp256k1};
+use serde_json::Value;
+use sha3::{Digest, Keccak256};
 use std::fs::File;
 use std::io::Read;
-use serde_json::Value;
-use secp256k1::{PublicKey, Secp256k1};
-use sha3::{Digest, Keccak256};
-use hex;
+use std::process::{Command, Stdio};
 
 #[derive(Deserialize)]
 struct KeygenRequest {
@@ -19,8 +19,6 @@ struct KeygenRequest {
 struct KeygenResponse {
     address: String,
 }
-
-
 
 fn parse_address_by_yum(json_file_path: &str) -> String {
     // 尝试读取 JSON 文件内容
@@ -46,7 +44,8 @@ fn parse_address_by_yum(json_file_path: &str) -> String {
     };
 
     // 将 JSON 数组转换为字节数组
-    let y_sum_s: Vec<u8> = array.iter()
+    let y_sum_s: Vec<u8> = array
+        .iter()
         .filter_map(|v| v.as_u64().map(|n| n as u8)) // 过滤并转换为 u8
         .collect();
 
@@ -70,8 +69,6 @@ fn compute_eth_address(compressed_pubkey: &[u8]) -> String {
     format!("0x{}", hex::encode(address))
 }
 
-
-
 async fn spawn_cli_process(
     address_send: &str,
     share_file: &str,
@@ -81,26 +78,29 @@ async fn spawn_cli_process(
     number_of_parties: &str,
 ) -> Result<String, String> {
     // 构造命令
-    let mut cmd =
-        Command::new("./gg20_keygen");
-    cmd.arg("--address")
-        .arg(address_send)
-        .arg("--output")
-        .arg(share_file)
-        .arg("--room")
-        .arg(room)
-        .arg("--threshold")
-        .arg(threshold)
-        .arg("--number-of-parties")
-        .arg(number_of_parties)
-        .arg("--index")
-        .arg(index)
-        .stdout(Stdio::piped());
 
-    println!("cmd: {:?}", cmd);
+    let command = vec![
+        "./gg20_keygen",
+        "--address",
+        address_send,
+        "--output",
+        share_file,
+        "--room",
+        room,
+        "--threshold",
+        threshold,
+        "--number-of-parties",
+        number_of_parties,
+        "--index",
+        index,
+    ];
 
+    println!("command: {}", command.join(" "));
 
     // 启动进程
+    let mut cmd = Command::new(command[0]);
+    cmd.args(&command[1..]).stdout(Stdio::piped());
+
     let child = cmd
         .spawn()
         .map_err(|e| format!("failed to spawn CLI: {}", e))?;
@@ -179,16 +179,19 @@ async fn keygen(req: Json<KeygenRequest>) -> Result<Json<KeygenResponse>, String
     )
     .await?;
 
-
     let address = &req.address;
-    let mut local_ip_idx= 0;
+    let mut local_ip_idx = 0;
     for (i, addr) in address_list.iter().enumerate() {
         if addr.to_lowercase() == address.to_lowercase() {
             local_ip_idx = i;
         }
     }
 
-    let local_share_file = format!("{}-{}.json", &req.keygen_share_path, &file_sharding_suffix[local_ip_idx].to_string());
+    let local_share_file = format!(
+        "{}-{}.json",
+        &req.keygen_share_path,
+        &file_sharding_suffix[local_ip_idx].to_string()
+    );
     let address = parse_address_by_yum(&local_share_file);
 
     Ok(Json(KeygenResponse { address: address }))

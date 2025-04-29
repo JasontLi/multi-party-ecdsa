@@ -80,6 +80,10 @@ path = "src/cli/gg20_signing.rs"
 name = "gg20_sm_manager"
 path = "src/http/gg20_sm_manager.rs"
 
+[[bin]]
+name = "gg20_sm_client"
+path = "src/cli/gg20_sm_client.rs"
+
 [profile.release]
 # Enable static linking for release builds
 lto = true

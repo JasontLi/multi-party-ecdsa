@@ -132,7 +132,7 @@ async fn keygen(req: Json<KeygenRequest>) -> Result<Json<KeygenResponse>, String
     let number_of_parties = "3";
 
     let mut index = 0;
-    let mut address_send = format!("http://{}：{}", &address_list[index], port);
+    let mut address_send = format!("http://{}:{}", &address_list[index], port);
     let mut share_file = format!("{}-{}.json", &req.keygen_share_path, &index.to_string());
     let mut index_suffix = file_sharding_suffix[index];
 

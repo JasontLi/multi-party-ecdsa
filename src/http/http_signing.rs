@@ -78,7 +78,7 @@ async fn signing(req: Json<SigningRequest>) -> Result<Json<SigningResponse>, Str
 
     let parties = select_list[0].to_string() + "," + &select_list[1].to_string();
     let mut index = select_list[0];
-    let mut address_send = format!("http://{}：{}", &address_list[index], port);
+    let mut address_send = format!("http://{}:{}", &address_list[index], port);
     let mut share_file = format!("{}-{}.json", &req.keygen_share_path, &index.to_string());
 
     // 调用 spawn_cli_process 来构造并启动第一个进程
@@ -92,7 +92,7 @@ async fn signing(req: Json<SigningRequest>) -> Result<Json<SigningResponse>, Str
     .await?;
 
     index = select_list[1];
-    address_send = format!("http://{}：{}", &address_list[index], port);
+    address_send = format!("http://{}:{}", &address_list[index], port);
     share_file = format!("{}-{}.json", &req.keygen_share_path, &index.to_string());
 
     // 重新设置参数并启动第二个进程

@@ -1,6 +1,6 @@
 use hex;
 use rocket::serde::{json::Json, Deserialize, Serialize};
-use rocket::{post, routes, Route};
+use rocket::{post, routes, Route, tokio};
 use secp256k1::{PublicKey, Secp256k1};
 use serde_json::Value;
 use sha3::{Digest, Keccak256};
@@ -8,9 +8,13 @@ use std::fs::File;
 use std::io::Read;
 use std::process::{Command, Stdio};
 
-#[derive(Deserialize)]
+use reqwest::Client;
+use rocket::tokio::sync::Mutex;
+use std::sync::Arc;
+
+#[derive(Serialize)]
 struct KeygenRequest {
-    keygen_share_path: String, // e.g. "/usr/wallet/0x123456"
+    keygen_share_path: String, // e.g. "/usr/wallet"
     room: String,              // e.g. "xxxxxxxx"
     address: String,           // e.g. "192.168.15.200"
     index: String,
@@ -127,17 +131,15 @@ async fn spawn_cli_process(
 }
 
 #[post("/keygen", data = "<req>")]
-async fn keygen(req: Json<KeygenRequest>) -> Result<Json<KeygenResponse>, String> {
-    let mut address_send = format!("http://{}:{}", &req.address, "33081");
-    let mut share_file = format!("{}-{}.json", &req.keygen_share_path, &req.index);
-
+async fn keygen(req: Json<KeygenRequest>) {
+    let address_send = format!("{}://{}:{}", "http", &req.address, "33081");
+    let share_file = format!("{}/{}-{}.json", &req.keygen_share_path, &req.room, &req.index);
     spawn_cli_process(&address_send, &share_file, &req.room, &req.index, "2", "3").await?;
-
-    Ok(Json(KeygenResponse { address: address }))
 }
 
+
 #[post("/start_keygen")]
-async fn keygen(req: Json<KeygenRequest>) -> Result<Json<KeygenResponse>, String> {
+async fn start_keygen(req: Json<KeygenRequest>) -> Result<Json<KeygenResponse>, String> {
     let ips = vec![
         "192.168.15.201", // 替换为实际的 IP 地址
         "192.168.15.202",
@@ -148,13 +150,18 @@ async fn keygen(req: Json<KeygenRequest>) -> Result<Json<KeygenResponse>, String
     let client = Client::new();
 
     // 请求的顺序是同步的，依次请求每个 IP 地址
-    let result = request_to_ip(&client, format!("http://{}:33081", &ips[0]), build_request_data(req, "1"))
+    let result = request_to_ip(&client, format_request_url( &ips[0]), &build_request_data(&req, "1"))
         .await
-        .and_then(|_| request_to_ip(&client, format!("http://{}:33081", &ips[1]), build_request_data(req, "2")).await)
-        .and_then(|_| request_to_ip(&client, format!("http://{}:33081", &ips[2]), build_request_data(req, "3")).await);
+        .and_then(async |_| request_to_ip(&client, format_request_url( &ips[1]), &build_request_data(&req, "2")).await)
+        .and_then(async |_| request_to_ip(&client, format_request_url( &ips[2]), &build_request_data(&req, "3")).await);
+
+    let index = ips.iter().position(|&address| address == &req.address);
+    let local_file = format!("{}/{}-{:?}.json", &req.keygen_share_path, &req.room, index);
+
+    let address = parse_address_by_yum(&local_file);
 
     match result {
-        Ok(_) => Ok("All requests were successful.".to_string()),
+        Ok(_) => Ok(Json(KeygenResponse { address })),
         Err(e) => Err(format!("Error occurred: {}", e)),
     }
 }
@@ -167,6 +174,10 @@ fn build_request_data(req: &Json<KeygenRequest>, index: &str) -> KeygenRequest {
         address: req.address.clone(),
         index: index.to_string(),
     }
+}
+
+fn format_request_url(ip: &str) -> &String {
+    &format!("{}://{}:33081", "http", &ip)
 }
 
 

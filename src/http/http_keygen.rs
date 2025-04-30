@@ -13,6 +13,7 @@ struct KeygenRequest {
     keygen_share_path: String, // e.g. "/usr/wallet/0x123456"
     room: String,              // e.g. "xxxxxxxx"
     address: String,           // e.g. "192.168.15.200"
+    index: String,
 }
 
 #[derive(Serialize)]
@@ -114,6 +115,11 @@ async fn spawn_cli_process(
         return Err(format!("CLI process exited with error: {}", output.status));
     }
 
+    // 如果没有输出，返回一个合适的提示
+    if output.stdout.is_empty() {
+        return Ok("CLI executed successfully, but no output was returned.".to_string());
+    }
+
     // 解析 stdout 为 UTF-8 字符串
     let sig = String::from_utf8(output.stdout)
         .map_err(|e| format!("invalid utf8 in CLI output: {}", e))?;
@@ -122,79 +128,62 @@ async fn spawn_cli_process(
 
 #[post("/keygen", data = "<req>")]
 async fn keygen(req: Json<KeygenRequest>) -> Result<Json<KeygenResponse>, String> {
-    // 地址列表【上线后替换为真实 ip】
-    let address_list = vec!["192.168.15.200", "192.168.15.201", "192.168.15.202"];
-    let port = "33081";
+    let mut address_send = format!("http://{}:{}", &req.address, "33081");
+    let mut share_file = format!("{}-{}.json", &req.keygen_share_path, &req.index);
 
-    let file_sharding_suffix = vec!["1", "2", "3"];
-
-    let threshold = "1";
-    let number_of_parties = "3";
-
-    let mut index = 0;
-    let mut address_send = format!("http://{}:{}", &address_list[index], port);
-    let mut share_file = format!("{}-{}.json", &req.keygen_share_path, &index.to_string());
-    let mut index_suffix = file_sharding_suffix[index];
-
-    // 调用 spawn_cli_process 来构造并启动第一个进程
-    let sig1 = spawn_cli_process(
-        &address_send,
-        &share_file,
-        &req.room,
-        &index_suffix,
-        &threshold,
-        &number_of_parties,
-    )
-    .await?;
-
-    index = 1;
-    address_send = format!("http://{}：{}", &address_list[index], port);
-    share_file = format!("{}-{}.json", &req.keygen_share_path, &index.to_string());
-    index_suffix = file_sharding_suffix[index];
-
-    // 重新设置参数并启动第二个进程
-    let sig2 = spawn_cli_process(
-        &address_send,
-        &share_file,
-        &req.room,
-        &index_suffix,
-        &threshold,
-        &number_of_parties,
-    )
-    .await?;
-
-    index = 2;
-    address_send = format!("http://{}：{}", &address_list[index], port);
-    share_file = format!("{}-{}.json", &req.keygen_share_path, &index.to_string());
-    index_suffix = file_sharding_suffix[index];
-
-    // 重新设置参数并启动第二个进程
-    let sig2 = spawn_cli_process(
-        &address_send,
-        &share_file,
-        &req.room,
-        &index_suffix,
-        &threshold,
-        &number_of_parties,
-    )
-    .await?;
-
-    let address = &req.address;
-    let mut local_ip_idx = 0;
-    for (i, addr) in address_list.iter().enumerate() {
-        if addr.to_lowercase() == address.to_lowercase() {
-            local_ip_idx = i;
-        }
-    }
-
-    let local_share_file = format!(
-        "{}-{}.json",
-        &req.keygen_share_path,
-        &file_sharding_suffix[local_ip_idx].to_string()
-    );
-    let address = parse_address_by_yum(&local_share_file);
+    spawn_cli_process(&address_send, &share_file, &req.room, &req.index, "2", "3").await?;
 
     Ok(Json(KeygenResponse { address: address }))
+}
+
+#[post("/start_keygen")]
+async fn keygen(req: Json<KeygenRequest>) -> Result<Json<KeygenResponse>, String> {
+    let ips = vec![
+        "192.168.15.201", // 替换为实际的 IP 地址
+        "192.168.15.202",
+        "192.168.15.203",
+    ];
+
+    // 创建异步客户端
+    let client = Client::new();
+
+    // 请求的顺序是同步的，依次请求每个 IP 地址
+    let result = request_to_ip(&client, format!("http://{}:33081", &ips[0]), build_request_data(req, "1"))
+        .await
+        .and_then(|_| request_to_ip(&client, format!("http://{}:33081", &ips[1]), build_request_data(req, "2")).await)
+        .and_then(|_| request_to_ip(&client, format!("http://{}:33081", &ips[2]), build_request_data(req, "3")).await);
+
+    match result {
+        Ok(_) => Ok("All requests were successful.".to_string()),
+        Err(e) => Err(format!("Error occurred: {}", e)),
+    }
+}
+
+
+fn build_request_data(req: &Json<KeygenRequest>, index: &str) -> KeygenRequest {
+    KeygenRequest {
+        keygen_share_path: req.keygen_share_path.clone(),
+        room: req.room.clone(),
+        address: req.address.clone(),
+        index: index.to_string(),
+    }
+}
+
+
+// 发送 POST 请求到指定的 IP 地址
+async fn request_to_ip(client: &Client, ip: &str, data: &KeygenRequest) -> Result<(), String> {
+    let response = client
+        .post(ip)
+        .json(data)  // 使用 serde 自动将结构体转换为 JSON
+        .send()
+        .await
+        .map_err(|e| format!("Failed to send request to {}: {}", ip, e))?;
+
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("Request to {} failed with status: {}", ip, response.status()))
+    }
 }
 
 pub fn mount_keygen_routes() -> Vec<Route> {
